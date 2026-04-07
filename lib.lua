@@ -61,6 +61,11 @@ local sideW     = 175
 local rad       = 12
 local vp        = workspace.CurrentCamera.ViewportSize
 
+-- CanvasGroup has a hardware limit around 2048x2048. Above that the internal
+-- buffer gets downscaled and the whole UI renders blurry. We cap fullscreen
+-- sizing to stay safely under this limit on any monitor (1440p / 4K / ultrawide).
+local CG_MAX = 2000
+
 local function make(c, p)
     local o = Instance.new(c)
     for k, v in next, p do o[k] = v end
@@ -361,9 +366,13 @@ local function setFullscreen()
         }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out, 0.3):Play()
     else
         savedSize=win.Size; savedPos=win.Position; fullscreen=true
+        -- Cap under CanvasGroup's 2048x2048 hardware limit so rendering stays crisp
+        -- on 1440p / 4K / ultrawide displays (above 2048 the buffer gets downscaled).
+        local targetW = math.min(vp2.X - 40, CG_MAX)
+        local targetH = math.min(vp2.Y - 40, CG_MAX)
         tween(win, {
-            Size=UDim2.new(0,vp2.X-40,0,vp2.Y-40),
-            Position=UDim2.new(0,20,0,20),
+            Size=UDim2.new(0,targetW,0,targetH),
+            Position=UDim2.new(0,floor((vp2.X-targetW)/2),0,floor((vp2.Y-targetH)/2)),
         }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out, 0.3):Play()
     end
 end
