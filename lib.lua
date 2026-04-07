@@ -328,11 +328,15 @@ end
 local function setAcrylic(enabled)
     acrylicOn = enabled
     local d = 0.35
-    local barT = enabled and 0.3 or 0
-    local bgT  = enabled and 0.4 or 0
-    tw(bg,        {BackgroundTransparency=bgT},  Enum.EasingStyle.Quint, d)
-    tw(topbarBG,  {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
-    tw(sidebarBG, {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
+    -- In acrylic mode, topbarBG and sidebarBG become fully transparent so
+    -- the entire UI reads as ONE uniformly semi-transparent dark rect (bg).
+    -- Otherwise their colored backgrounds would stack on top of bg and the
+    -- top/left areas would look noticeably darker ("black bar") than content.
+    local bgT    = enabled and 0.4 or 0
+    local barBgT = enabled and 1   or 0
+    tw(bg,        {BackgroundTransparency=bgT},    Enum.EasingStyle.Quint, d)
+    tw(topbarBG,  {BackgroundTransparency=barBgT}, Enum.EasingStyle.Quint, d)
+    tw(sidebarBG, {BackgroundTransparency=barBgT}, Enum.EasingStyle.Quint, d)
     for _, bar in next, miniBars do
         tw(bar, {BackgroundTransparency=enabled and 1 or 0}, Enum.EasingStyle.Quint, d)
     end
@@ -351,8 +355,8 @@ local function setMinimize()
         tw(fadeOverlay, {BackgroundTransparency=1}, Enum.EasingStyle.Quint, 0.3)
         if acrylicOn then
             bg.BackgroundTransparency = 0.4
-            topbarBG.BackgroundTransparency = 0.3
-            sidebarBG.BackgroundTransparency = 0.3
+            topbarBG.BackgroundTransparency = 1
+            sidebarBG.BackgroundTransparency = 1
             applyBlur(true)
         end
         task.delay(0.05, function() sidebar.Visible=true; content.Visible=true end)
