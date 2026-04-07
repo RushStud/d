@@ -61,10 +61,11 @@ local sideW     = 175
 local rad       = 12
 local vp        = workspace.CurrentCamera.ViewportSize
 
--- CanvasGroup has a hardware limit around 2048x2048. Above that the internal
--- buffer gets downscaled and the whole UI renders blurry. We cap fullscreen
--- sizing to stay safely under this limit on any monitor (1440p / 4K / ultrawide).
-local CG_MAX = 2000
+-- Fullscreen target size. Capped so the UI does not stretch absurdly on
+-- ultrawide / 1440p / 4K monitors. Small enough that content stays readable
+-- and proportional, big enough to feel like a proper maximized window.
+local FS_MAX_W = 1400
+local FS_MAX_H = 900
 
 local function make(c, p)
     local o = Instance.new(c)
@@ -142,11 +143,24 @@ local win = make("Frame", {
     BackgroundTransparency=1, BorderSizePixel=0,
 })
 
-local bg = make("CanvasGroup", {
+-- bg was previously a CanvasGroup for its GroupTransparency property, but
+-- CanvasGroups have a 2048x2048 internal buffer limit and do not play well
+-- with UIScale (the raster gets stretched, causing blur). Using a regular
+-- Frame lets the UI render crisp at any resolution, including 4K fullscreen.
+-- A separate fade overlay below handles the fade-in/out animations.
+local bg = make("Frame", {
     Parent=win, Size=UDim2.new(1,0,1,0),
     BackgroundColor3=rgb(10,10,10), BorderSizePixel=0,
+    ClipsDescendants=true,
 })
 make("UICorner", {Parent=bg, CornerRadius=UDim.new(0,rad)})
+
+local fadeOverlay = make("Frame", {
+    Parent=win, Size=UDim2.new(1,0,1,0),
+    BackgroundColor3=rgb(0,0,0), BackgroundTransparency=1,
+    BorderSizePixel=0, ZIndex=500, Active=false,
+})
+make("UICorner", {Parent=fadeOverlay, CornerRadius=UDim.new(0,rad)})
 
 local topbar = make("Frame", {
     Parent=bg, Size=UDim2.new(1,0,0,topH),
@@ -327,9 +341,9 @@ local function setMinimize()
         minimized = false
         win.Size     = savedSize or UDim2.new(0,w,0,h)
         win.Position = savedPos  or UDim2.new(0,floor((vp.X-w)/2),0,floor((vp.Y-h)/2))
-        bg.GroupTransparency = 1
         win.Visible = true
-        tw(bg, {GroupTransparency=0}, Enum.EasingStyle.Quint, 0.3)
+        fadeOverlay.BackgroundTransparency = 0
+        tw(fadeOverlay, {BackgroundTransparency=1}, Enum.EasingStyle.Quint, 0.3)
         if acrylicOn then
             bg.BackgroundTransparency=0.4; topbar.BackgroundTransparency=0.3
             sidebar.BackgroundTransparency=0.3; applyBlur(true)
@@ -341,7 +355,7 @@ local function setMinimize()
         savedSize=win.Size; savedPos=win.Position; minimized=true
         sidebar.Visible=false; content.Visible=false
         applyBlur(false)
-        tw(bg, {GroupTransparency=1}, nil, 0.18)
+        tw(fadeOverlay, {BackgroundTransparency=0}, nil, 0.18)
         tween(win, {
             Size=UDim2.new(0,w,0,0),
             Position=UDim2.new(0,savedPos.X.Offset,0,savedPos.Y.Offset+savedSize.Y.Offset/2),
@@ -366,10 +380,8 @@ local function setFullscreen()
         }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out, 0.3):Play()
     else
         savedSize=win.Size; savedPos=win.Position; fullscreen=true
-        -- Cap under CanvasGroup's 2048x2048 hardware limit so rendering stays crisp
-        -- on 1440p / 4K / ultrawide displays (above 2048 the buffer gets downscaled).
-        local targetW = math.min(vp2.X - 40, CG_MAX)
-        local targetH = math.min(vp2.Y - 40, CG_MAX)
+        local targetW = math.min(vp2.X - 40, FS_MAX_W)
+        local targetH = math.min(vp2.Y - 40, FS_MAX_H)
         tween(win, {
             Size=UDim2.new(0,targetW,0,targetH),
             Position=UDim2.new(0,floor((vp2.X-targetW)/2),0,floor((vp2.Y-targetH)/2)),
@@ -388,7 +400,7 @@ local function doClose()
         Size=UDim2.new(0,tw2,0,th2),
         Position=UDim2.new(0,floor((vp2.X-tw2)/2),0,floor((vp2.Y-th2)/2)),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.In, 0.35):Play()
-    tw(bg, {GroupTransparency=1}, Enum.EasingStyle.Quint, 0.3)
+    tw(fadeOverlay, {BackgroundTransparency=0}, Enum.EasingStyle.Quint, 0.3)
     task.delay(0.38, function()
         if gui and gui.Parent then gui:Destroy() end
         if miniGui and miniGui.Parent then miniGui:Destroy() end
