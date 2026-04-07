@@ -161,19 +161,23 @@ local fadeOverlay = make("Frame", {
 })
 make("UICorner", {Parent=fadeOverlay, CornerRadius=UDim.new(0,rad)})
 
+-- topbar is a transparent clip container (ClipsDescendants=true). Its inner
+-- background (topbarBG) is a single Frame with UICorner that extends rad
+-- pixels BELOW topbar's visible area. The container clips rectangularly so
+-- only the top two rounded corners of topbarBG stay visible — the bottom
+-- rounded corners are cut off. One Frame, one transparency level, no black
+-- bar artifacts in acrylic mode.
 local topbar = make("Frame", {
     Parent=bg, Size=UDim2.new(1,0,0,topH),
+    BackgroundTransparency=1, BorderSizePixel=0,
+    ClipsDescendants=true, Active=true, ZIndex=3,
+})
+topbarBG = make("Frame", {
+    Parent=topbar, Position=UDim2.new(0,0,0,0),
+    Size=UDim2.new(1,0,0,topH+rad),
     BackgroundColor3=rgb(7,7,7), BorderSizePixel=0, ZIndex=3,
 })
-make("UICorner", {Parent=topbar, CornerRadius=UDim.new(0,rad)})
-
--- Squares off topbar's BOTTOM edge so it meets sidebar/content cleanly
--- (UICorner rounds all 4 corners, but we only want the top 2 rounded).
-local topbarFillBottom = make("Frame", {
-    Parent=topbar, Position=UDim2.new(0,0,1,-rad),
-    Size=UDim2.new(1,0,0,rad), BackgroundColor3=rgb(7,7,7),
-    BorderSizePixel=0, ZIndex=3,
-})
+make("UICorner", {Parent=topbarBG, CornerRadius=UDim.new(0,rad)})
 make("Frame", {
     Parent=bg, Position=UDim2.new(0,0,0,topH),
     Size=UDim2.new(1,0,0,1), BackgroundColor3=rgb(25,25,28), BorderSizePixel=0, ZIndex=4,
@@ -273,7 +277,7 @@ make("UIListLayout", {
 })
 
 local sidebar, content
-local sidebarFillTop, sidebarFillRight
+local topbarBG, sidebarBG
 local minimized, fullscreen = false, false
 local savedSize, savedPos
 local minimizing = false
@@ -326,12 +330,9 @@ local function setAcrylic(enabled)
     local d = 0.35
     local barT = enabled and 0.3 or 0
     local bgT  = enabled and 0.4 or 0
-    tw(bg,               {BackgroundTransparency=bgT},  Enum.EasingStyle.Quint, d)
-    tw(topbar,           {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
-    tw(topbarFillBottom, {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
-    tw(sidebar,          {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
-    if sidebarFillTop   then tw(sidebarFillTop,   {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d) end
-    if sidebarFillRight then tw(sidebarFillRight, {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d) end
+    tw(bg,        {BackgroundTransparency=bgT},  Enum.EasingStyle.Quint, d)
+    tw(topbarBG,  {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
+    tw(sidebarBG, {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
     for _, bar in next, miniBars do
         tw(bar, {BackgroundTransparency=enabled and 1 or 0}, Enum.EasingStyle.Quint, d)
     end
@@ -349,11 +350,9 @@ local function setMinimize()
         win.Visible = true
         tw(fadeOverlay, {BackgroundTransparency=1}, Enum.EasingStyle.Quint, 0.3)
         if acrylicOn then
-            bg.BackgroundTransparency=0.4; topbar.BackgroundTransparency=0.3
-            topbarFillBottom.BackgroundTransparency=0.3
-            sidebar.BackgroundTransparency=0.3
-            if sidebarFillTop   then sidebarFillTop.BackgroundTransparency=0.3   end
-            if sidebarFillRight then sidebarFillRight.BackgroundTransparency=0.3 end
+            bg.BackgroundTransparency = 0.4
+            topbarBG.BackgroundTransparency = 0.3
+            sidebarBG.BackgroundTransparency = 0.3
             applyBlur(true)
         end
         task.delay(0.05, function() sidebar.Visible=true; content.Visible=true end)
@@ -380,8 +379,10 @@ end
 local function setFullscreen()
     if minimized then return end
     local vp2 = workspace.CurrentCamera.ViewportSize
-    local fsDur  = 0.55
-    local fsEase = Enum.EasingStyle.Quint
+    -- Short duration + Cubic Out feels snappy and smooth. Longer tweens
+    -- (0.5s+) feel slow and magnify tiny per-frame jitter that reads as jerky.
+    local fsDur  = 0.35
+    local fsEase = Enum.EasingStyle.Cubic
     local fsDir  = Enum.EasingDirection.Out
     if fullscreen then
         fullscreen = false
@@ -439,25 +440,22 @@ for _, b in next, {
 end
 drag(topbar, win)
 
+-- sidebar is a transparent clip container. Its inner background (sidebarBG)
+-- is extended by rad pixels up and right, so that when the container clips
+-- rectangularly only the bottom-left rounded corner stays visible (matching
+-- bg's bottom-left corner). Clean single-transparency rendering.
 sidebar = make("Frame", {
     Parent=bg, Position=UDim2.new(0,0,0,topH+1),
     Size=UDim2.new(0,sideW,1,-(topH+1)),
+    BackgroundTransparency=1, BorderSizePixel=0,
+    ClipsDescendants=true, ZIndex=2,
+})
+sidebarBG = make("Frame", {
+    Parent=sidebar, Position=UDim2.new(0,0,0,-rad),
+    Size=UDim2.new(1,rad,1,rad),
     BackgroundColor3=rgb(7,7,7), BorderSizePixel=0, ZIndex=2,
 })
-make("UICorner", {Parent=sidebar, CornerRadius=UDim.new(0,rad)})
-
--- Squares off sidebar's TOP and RIGHT edges so it meets topbar and content
--- cleanly. Only the bottom-left corner of sidebar stays rounded (to match bg).
-sidebarFillTop = make("Frame", {
-    Parent=sidebar, Position=UDim2.new(0,0,0,0),
-    Size=UDim2.new(1,0,0,rad), BackgroundColor3=rgb(7,7,7),
-    BorderSizePixel=0, ZIndex=2,
-})
-sidebarFillRight = make("Frame", {
-    Parent=sidebar, Position=UDim2.new(1,-rad,0,0),
-    Size=UDim2.new(0,rad,1,0), BackgroundColor3=rgb(7,7,7),
-    BorderSizePixel=0, ZIndex=2,
-})
+make("UICorner", {Parent=sidebarBG, CornerRadius=UDim.new(0,rad)})
 make("Frame", {
     Parent=bg, Position=UDim2.new(0,sideW,0,topH+1),
     Size=UDim2.new(0,1,1,-(topH+1)), BackgroundColor3=rgb(25,25,28),
