@@ -166,6 +166,14 @@ local topbar = make("Frame", {
     BackgroundColor3=rgb(7,7,7), BorderSizePixel=0, ZIndex=3,
 })
 make("UICorner", {Parent=topbar, CornerRadius=UDim.new(0,rad)})
+
+-- Squares off topbar's BOTTOM edge so it meets sidebar/content cleanly
+-- (UICorner rounds all 4 corners, but we only want the top 2 rounded).
+local topbarFillBottom = make("Frame", {
+    Parent=topbar, Position=UDim2.new(0,0,1,-rad),
+    Size=UDim2.new(1,0,0,rad), BackgroundColor3=rgb(7,7,7),
+    BorderSizePixel=0, ZIndex=3,
+})
 make("Frame", {
     Parent=bg, Position=UDim2.new(0,0,0,topH),
     Size=UDim2.new(1,0,0,1), BackgroundColor3=rgb(25,25,28), BorderSizePixel=0, ZIndex=4,
@@ -265,6 +273,7 @@ make("UIListLayout", {
 })
 
 local sidebar, content
+local sidebarFillTop, sidebarFillRight
 local minimized, fullscreen = false, false
 local savedSize, savedPos
 local minimizing = false
@@ -315,23 +324,18 @@ end
 local function setAcrylic(enabled)
     acrylicOn = enabled
     local d = 0.35
-    if enabled then
-        tw(bg,      {BackgroundTransparency=0.4}, Enum.EasingStyle.Quint, d)
-        tw(topbar,  {BackgroundTransparency=0.3}, Enum.EasingStyle.Quint, d)
-        tw(sidebar, {BackgroundTransparency=0.3}, Enum.EasingStyle.Quint, d)
-        for _, bar in next, miniBars do
-            tw(bar, {BackgroundTransparency=1}, Enum.EasingStyle.Quint, d)
-        end
-        applyBlur(true)
-    else
-        tw(bg,      {BackgroundTransparency=0}, Enum.EasingStyle.Quint, d)
-        tw(topbar,  {BackgroundTransparency=0}, Enum.EasingStyle.Quint, d)
-        tw(sidebar, {BackgroundTransparency=0}, Enum.EasingStyle.Quint, d)
-        for _, bar in next, miniBars do
-            tw(bar, {BackgroundTransparency=0}, Enum.EasingStyle.Quint, d)
-        end
-        applyBlur(false)
+    local barT = enabled and 0.3 or 0
+    local bgT  = enabled and 0.4 or 0
+    tw(bg,               {BackgroundTransparency=bgT},  Enum.EasingStyle.Quint, d)
+    tw(topbar,           {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
+    tw(topbarFillBottom, {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
+    tw(sidebar,          {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d)
+    if sidebarFillTop   then tw(sidebarFillTop,   {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d) end
+    if sidebarFillRight then tw(sidebarFillRight, {BackgroundTransparency=barT}, Enum.EasingStyle.Quint, d) end
+    for _, bar in next, miniBars do
+        tw(bar, {BackgroundTransparency=enabled and 1 or 0}, Enum.EasingStyle.Quint, d)
     end
+    applyBlur(enabled)
 end
 
 local function setMinimize()
@@ -346,7 +350,11 @@ local function setMinimize()
         tw(fadeOverlay, {BackgroundTransparency=1}, Enum.EasingStyle.Quint, 0.3)
         if acrylicOn then
             bg.BackgroundTransparency=0.4; topbar.BackgroundTransparency=0.3
-            sidebar.BackgroundTransparency=0.3; applyBlur(true)
+            topbarFillBottom.BackgroundTransparency=0.3
+            sidebar.BackgroundTransparency=0.3
+            if sidebarFillTop   then sidebarFillTop.BackgroundTransparency=0.3   end
+            if sidebarFillRight then sidebarFillRight.BackgroundTransparency=0.3 end
+            applyBlur(true)
         end
         task.delay(0.05, function() sidebar.Visible=true; content.Visible=true end)
         task.delay(0.08, function() miniGui.Enabled=false end)
@@ -372,12 +380,15 @@ end
 local function setFullscreen()
     if minimized then return end
     local vp2 = workspace.CurrentCamera.ViewportSize
+    local fsDur  = 0.55
+    local fsEase = Enum.EasingStyle.Quint
+    local fsDir  = Enum.EasingDirection.Out
     if fullscreen then
         fullscreen = false
         tween(win, {
             Size=savedSize or UDim2.new(0,w,0,h),
             Position=savedPos or UDim2.new(0,floor((vp2.X-w)/2),0,floor((vp2.Y-h)/2)),
-        }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out, 0.3):Play()
+        }, fsEase, fsDir, fsDur):Play()
     else
         savedSize=win.Size; savedPos=win.Position; fullscreen=true
         local targetW = math.min(vp2.X - 40, FS_MAX_W)
@@ -385,7 +396,7 @@ local function setFullscreen()
         tween(win, {
             Size=UDim2.new(0,targetW,0,targetH),
             Position=UDim2.new(0,floor((vp2.X-targetW)/2),0,floor((vp2.Y-targetH)/2)),
-        }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out, 0.3):Play()
+        }, fsEase, fsDir, fsDur):Play()
     end
 end
 
@@ -434,6 +445,19 @@ sidebar = make("Frame", {
     BackgroundColor3=rgb(7,7,7), BorderSizePixel=0, ZIndex=2,
 })
 make("UICorner", {Parent=sidebar, CornerRadius=UDim.new(0,rad)})
+
+-- Squares off sidebar's TOP and RIGHT edges so it meets topbar and content
+-- cleanly. Only the bottom-left corner of sidebar stays rounded (to match bg).
+sidebarFillTop = make("Frame", {
+    Parent=sidebar, Position=UDim2.new(0,0,0,0),
+    Size=UDim2.new(1,0,0,rad), BackgroundColor3=rgb(7,7,7),
+    BorderSizePixel=0, ZIndex=2,
+})
+sidebarFillRight = make("Frame", {
+    Parent=sidebar, Position=UDim2.new(1,-rad,0,0),
+    Size=UDim2.new(0,rad,1,0), BackgroundColor3=rgb(7,7,7),
+    BorderSizePixel=0, ZIndex=2,
+})
 make("Frame", {
     Parent=bg, Position=UDim2.new(0,sideW,0,topH+1),
     Size=UDim2.new(0,1,1,-(topH+1)), BackgroundColor3=rgb(25,25,28),
