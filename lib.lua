@@ -143,24 +143,15 @@ local win = make("Frame", {
     BackgroundTransparency=1, BorderSizePixel=0,
 })
 
--- bg was previously a CanvasGroup for its GroupTransparency property, but
--- CanvasGroups have a 2048x2048 internal buffer limit and do not play well
--- with UIScale (the raster gets stretched, causing blur). Using a regular
--- Frame lets the UI render crisp at any resolution, including 4K fullscreen.
--- A separate fade overlay below handles the fade-in/out animations.
-local bg = make("Frame", {
+-- bg is a CanvasGroup so its rounded corners clip all descendants cleanly
+-- (topbar, sidebar, etc.). The fullscreen cap (FS_MAX_W/FS_MAX_H) keeps its
+-- AbsoluteSize well under the CanvasGroup 2048x2048 hardware limit, so the
+-- buffer never gets downscaled and everything renders crisp even on 4K.
+local bg = make("CanvasGroup", {
     Parent=win, Size=UDim2.new(1,0,1,0),
     BackgroundColor3=rgb(10,10,10), BorderSizePixel=0,
-    ClipsDescendants=true,
 })
 make("UICorner", {Parent=bg, CornerRadius=UDim.new(0,rad)})
-
-local fadeOverlay = make("Frame", {
-    Parent=win, Size=UDim2.new(1,0,1,0),
-    BackgroundColor3=rgb(0,0,0), BackgroundTransparency=1,
-    BorderSizePixel=0, ZIndex=500, Active=false,
-})
-make("UICorner", {Parent=fadeOverlay, CornerRadius=UDim.new(0,rad)})
 
 local topbar = make("Frame", {
     Parent=bg, Size=UDim2.new(1,0,0,topH),
@@ -341,9 +332,9 @@ local function setMinimize()
         minimized = false
         win.Size     = savedSize or UDim2.new(0,w,0,h)
         win.Position = savedPos  or UDim2.new(0,floor((vp.X-w)/2),0,floor((vp.Y-h)/2))
+        bg.GroupTransparency = 1
         win.Visible = true
-        fadeOverlay.BackgroundTransparency = 0
-        tw(fadeOverlay, {BackgroundTransparency=1}, Enum.EasingStyle.Quint, 0.3)
+        tw(bg, {GroupTransparency=0}, Enum.EasingStyle.Quint, 0.3)
         if acrylicOn then
             bg.BackgroundTransparency=0.4; topbar.BackgroundTransparency=0.3
             sidebar.BackgroundTransparency=0.3; applyBlur(true)
@@ -355,7 +346,7 @@ local function setMinimize()
         savedSize=win.Size; savedPos=win.Position; minimized=true
         sidebar.Visible=false; content.Visible=false
         applyBlur(false)
-        tw(fadeOverlay, {BackgroundTransparency=0}, nil, 0.18)
+        tw(bg, {GroupTransparency=1}, nil, 0.18)
         tween(win, {
             Size=UDim2.new(0,w,0,0),
             Position=UDim2.new(0,savedPos.X.Offset,0,savedPos.Y.Offset+savedSize.Y.Offset/2),
@@ -400,7 +391,7 @@ local function doClose()
         Size=UDim2.new(0,tw2,0,th2),
         Position=UDim2.new(0,floor((vp2.X-tw2)/2),0,floor((vp2.Y-th2)/2)),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.In, 0.35):Play()
-    tw(fadeOverlay, {BackgroundTransparency=0}, Enum.EasingStyle.Quint, 0.3)
+    tw(bg, {GroupTransparency=1}, Enum.EasingStyle.Quint, 0.3)
     task.delay(0.38, function()
         if gui and gui.Parent then gui:Destroy() end
         if miniGui and miniGui.Parent then miniGui:Destroy() end
