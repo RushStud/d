@@ -445,7 +445,7 @@ local function applyBlur(on)
             end
         end
 
-        acrylicDOF.Parent  = lighting
+        acrylicDOF.Parent  = workspace.CurrentCamera
         acrylicDOF.Enabled = true
         acrylicPart.Transparency = 0.98
         acrylicPart.Parent = acrylicFolder
