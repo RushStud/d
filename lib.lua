@@ -161,6 +161,12 @@ local fadeOverlay = make("Frame", {
 })
 make("UICorner", {Parent=fadeOverlay, CornerRadius=UDim.new(0,rad)})
 
+-- Forward declarations: topbarBG and sidebarBG must be locals declared
+-- BEFORE both setAcrylic (which captures them as upvalues) AND their own
+-- creation lines below — otherwise the "X = make(...)" lines would assign
+-- to a global, and a later `local X` declaration would shadow it with nil.
+local topbarBG, sidebarBG
+
 -- topbar is a transparent clip container (ClipsDescendants=true). Its inner
 -- background (topbarBG) is a single Frame with UICorner that extends rad
 -- pixels BELOW topbar's visible area. The container clips rectangularly so
@@ -277,7 +283,6 @@ make("UIListLayout", {
 })
 
 local sidebar, content
-local topbarBG, sidebarBG
 local minimized, fullscreen = false, false
 local savedSize, savedPos
 local minimizing = false
