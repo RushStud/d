@@ -4,16 +4,9 @@ do
         local old = cg:FindFirstChild(n) if old then old:Destroy() end
     end
     for _, e in next, game:GetService("Lighting"):GetChildren() do
-        if (e:IsA("BlurEffect") and e.Name == "HittaBlur")
-        or (e:IsA("DepthOfFieldEffect") and e.Name == "HittaDOF") then
+        if e:IsA("DepthOfFieldEffect") and e.Name == "HittaDOF" then
             e:Destroy()
         end
-    end
-    -- Remove stale Glass acrylic parts from previous sessions
-    local cam = workspace.CurrentCamera
-    if cam then
-        local folder = cam:FindFirstChild("HittaAcrylic")
-        if folder then folder:Destroy() end
     end
 end
 
@@ -55,18 +48,14 @@ do
     }
 end
 
-local acrylicOn     = false
-local acrylicPart    = nil
-local acrylicFolder  = nil
-local acrylicDOF     = nil
-local acrylicConns   = {}
-local disabledDOFs   = {}
-local accent        = rgb(235,235,235)
+local acrylicOn      = false
+local hittaDOF       = nil
+local accent         = rgb(235,235,235)
 local accentTrackers = {}
-local toggleKey     = Enum.KeyCode.RightShift
-local cfgDir        = "HITTA"
-local miniBars      = {}
-local widgetState   = {}
+local toggleKey      = Enum.KeyCode.RightShift
+local cfgDir         = "HITTA"
+local miniBars       = {}
+local widgetState    = {}
 
 local w, h      = 700, 550
 local topH      = 48
@@ -74,9 +63,6 @@ local sideW     = 175
 local rad       = 12
 local vp        = workspace.CurrentCamera.ViewportSize
 
--- Fullscreen target size. Capped so the UI does not stretch absurdly on
--- ultrawide / 1440p / 4K monitors. Small enough that content stays readable
--- and proportional, big enough to feel like a proper maximized window.
 local FS_MAX_W = 1400
 local FS_MAX_H = 900
 
@@ -156,10 +142,6 @@ local win = make("Frame", {
     BackgroundTransparency=1, BorderSizePixel=0,
 })
 
--- bg is a plain Frame so UIScale / high resolutions never hit the 2048x2048
--- CanvasGroup hardware limit that causes blur on 4K displays. Rounded corner
--- clipping is achieved by giving each direct child (topbar / sidebar /
--- content) a matching UICorner. A separate fadeOverlay handles fade anims.
 local bg = make("Frame", {
     Parent=win, Size=UDim2.new(1,0,1,0),
     BackgroundColor3=rgb(10,10,10), BorderSizePixel=0,
@@ -174,18 +156,8 @@ local fadeOverlay = make("Frame", {
 })
 make("UICorner", {Parent=fadeOverlay, CornerRadius=UDim.new(0,rad)})
 
--- Forward declarations: topbarBG and sidebarBG must be locals declared
--- BEFORE both setAcrylic (which captures them as upvalues) AND their own
--- creation lines below — otherwise the "X = make(...)" lines would assign
--- to a global, and a later `local X` declaration would shadow it with nil.
 local topbarBG, sidebarBG
 
--- topbar is a transparent clip container (ClipsDescendants=true). Its inner
--- background (topbarBG) is a single Frame with UICorner that extends rad
--- pixels BELOW topbar's visible area. The container clips rectangularly so
--- only the top two rounded corners of topbarBG stay visible — the bottom
--- rounded corners are cut off. One Frame, one transparency level, no black
--- bar artifacts in acrylic mode.
 local topbar = make("Frame", {
     Parent=bg, Size=UDim2.new(1,0,0,topH),
     BackgroundTransparency=1, BorderSizePixel=0,
@@ -320,170 +292,37 @@ openIcon.InputEnded:Connect(function(i)
 end)
 drag(openIcon, openIcon)
 
--- Localized acrylic blur using a 3D Glass Part positioned to cover the UI rect.
--- Technique (from WindUI): place an Anchored Part with Material=Glass very close
--- to the camera, sized to exactly match the `bg` frame's screen rectangle in world
--- space (via Camera:ScreenPointToRay). Glass material naturally refracts what's
--- behind it, and a DepthOfFieldEffect with NearIntensity=1 amplifies that into
--- a proper blur. Since the Part is 3D and limited to the UI rect, ONLY the area
--- behind the hub is blurred — everything outside stays sharp. No global blur.
-
-local function acrylicViewportToWorld(pt, dist)
-    local cam = workspace.CurrentCamera
-    if not cam then return Vector3.new() end
-    local ray = cam:ScreenPointToRay(pt.X, pt.Y)
-    return ray.Origin + ray.Direction * dist
-end
-
-local function acrylicCreatePart()
-    local p = Instance.new("Part")
-    p.Name      = "HittaAcrylicGlass"
-    p.Color     = rgb(0, 0, 0)
-    p.Material  = Enum.Material.Glass
-    p.Size      = Vector3.new(1, 1, 0)
-    p.Anchored  = true
-    p.CanCollide= false
-    p.CanQuery  = false
-    p.CanTouch  = false
-    p.Locked    = true
-    p.CastShadow= false
-    p.Transparency = 0.98
-
-    local mesh = Instance.new("SpecialMesh")
-    mesh.MeshType = Enum.MeshType.Brick
-    mesh.Offset   = Vector3.new(0, 0, -1e-6)
-    mesh.Parent   = p
-    return p
-end
-
-local function acrylicRender()
-    if not acrylicPart or not acrylicPart.Parent then return end
-    local cam = workspace.CurrentCamera
-    if not cam then return end
-    if not win or not win:IsDescendantOf(game) then return end
-
-    local absPos  = win.AbsolutePosition
-    local absSize = win.AbsoluteSize
-    if absSize.X < 10 or absSize.Y < 10 then return end
-
-    -- WindUI inset: scale by viewport height
-    local function map(x, a, b, c, d) return (x - a) * (d - c) / (b - a) + c end
-    local offset = map(cam.ViewportSize.Y, 0, 2560, 8, 56)
-    local pos    = absPos  + Vector2.new(offset / 2, offset / 2)
-    local size   = absSize - Vector2.new(offset, offset)
-
-    local tl = pos
-    local tr = pos + Vector2.new(size.X, 0)
-    local br = pos + size
-
-    local radius = 0.001
-    local tlW = acrylicViewportToWorld(tl, radius)
-    local trW = acrylicViewportToWorld(tr, radius)
-    local brW = acrylicViewportToWorld(br, radius)
-
-    local width  = (trW - tlW).Magnitude
-    local height = (trW - brW).Magnitude
-    local camCF  = cam.CFrame
-
-    acrylicPart.CFrame = CFrame.fromMatrix(
-        (tlW + brW) / 2,
-        camCF.XVector, camCF.YVector, camCF.ZVector
-    )
-    acrylicPart.Mesh.Scale = Vector3.new(width, height, 0)
-end
-
-local function acrylicInit()
-    if acrylicPart then return end
-
-    local cam = workspace.CurrentCamera
-    if not cam then return end
-
-    acrylicFolder = Instance.new("Folder")
-    acrylicFolder.Name = "HittaAcrylic"
-    acrylicFolder.Parent = cam
-
-    acrylicPart = acrylicCreatePart()
-    acrylicPart.Parent = acrylicFolder
-
-    acrylicDOF = Instance.new("DepthOfFieldEffect")
-    acrylicDOF.Name          = "HittaDOF"
-    acrylicDOF.FarIntensity  = 0
-    acrylicDOF.InFocusRadius = 0.1
-    acrylicDOF.NearIntensity = 1
-    acrylicDOF.Enabled       = false
-end
-
-local function acrylicDisconnect()
-    for _, c in ipairs(acrylicConns) do
-        pcall(function() c:Disconnect() end)
-    end
-    acrylicConns = {}
-end
-
+-- Acrylic via DepthOfFieldEffect uniquement (pas de Glass Part)
 local function applyBlur(on)
     if on then
-        acrylicInit()
-        if not acrylicPart then return end
-
-        acrylicDisconnect()
-
-        -- Disable any other DepthOfFieldEffects so ours is the only active one
-        disabledDOFs = {}
-        for _, e in ipairs(lighting:GetChildren()) do
-            if e:IsA("DepthOfFieldEffect") and e ~= acrylicDOF and e.Enabled then
-                table.insert(disabledDOFs, e)
-                e.Enabled = false
-            end
+        if not hittaDOF then
+            hittaDOF = Instance.new("DepthOfFieldEffect")
+            hittaDOF.Name          = "HittaDOF"
+            hittaDOF.FocusDistance = 0.01
+            hittaDOF.InFocusRadius = 0.01
+            hittaDOF.NearIntensity = 0
+            hittaDOF.FarIntensity  = 1
         end
-        local cam = workspace.CurrentCamera
-        if cam then
-            for _, e in ipairs(cam:GetChildren()) do
-                if e:IsA("DepthOfFieldEffect") and e ~= acrylicDOF and e.Enabled then
-                    table.insert(disabledDOFs, e)
-                    e.Enabled = false
-                end
-            end
-        end
-
-        acrylicDOF.Parent  = workspace.CurrentCamera
-        acrylicDOF.Enabled = true
-        acrylicPart.Transparency = 0.98
-        acrylicPart.Parent = acrylicFolder
-
-        -- Re-render when camera or window frame moves
-        if cam then
-            table.insert(acrylicConns, cam:GetPropertyChangedSignal("CFrame"):Connect(acrylicRender))
-            table.insert(acrylicConns, cam:GetPropertyChangedSignal("ViewportSize"):Connect(acrylicRender))
-            table.insert(acrylicConns, cam:GetPropertyChangedSignal("FieldOfView"):Connect(acrylicRender))
-        end
-        table.insert(acrylicConns, win:GetPropertyChangedSignal("AbsolutePosition"):Connect(acrylicRender))
-        table.insert(acrylicConns, win:GetPropertyChangedSignal("AbsoluteSize"):Connect(acrylicRender))
-
-        task.spawn(acrylicRender)
+        hittaDOF.Parent  = lighting
+        hittaDOF.Enabled = true
+        ts:Create(hittaDOF, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FarIntensity=1}):Play()
     else
-        acrylicDisconnect()
-        if acrylicDOF then
-            acrylicDOF.Enabled = false
-            acrylicDOF.Parent = nil
+        if hittaDOF then
+            local d = ts:Create(hittaDOF, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FarIntensity=0})
+            d:Play()
+            d.Completed:Connect(function()
+                if hittaDOF then
+                    hittaDOF.Enabled = false
+                    hittaDOF.Parent  = nil
+                end
+            end)
         end
-        if acrylicPart then
-            acrylicPart.Transparency = 1
-        end
-        -- Restore other DOFs we disabled
-        for _, e in ipairs(disabledDOFs) do
-            pcall(function() e.Enabled = true end)
-        end
-        disabledDOFs = {}
     end
 end
 
 local function setAcrylic(enabled)
     acrylicOn = enabled
     local d = 0.35
-    -- In acrylic mode, topbarBG and sidebarBG become fully transparent so
-    -- the entire UI reads as ONE uniformly semi-transparent dark rect (bg).
-    -- Otherwise their colored backgrounds would stack on top of bg and the
-    -- top/left areas would look noticeably darker ("black bar") than content.
     local bgT    = enabled and 0.4 or 0
     local barBgT = enabled and 1   or 0
     tw(bg,        {BackgroundTransparency=bgT},    Enum.EasingStyle.Quint, d)
@@ -535,8 +374,6 @@ end
 local function setFullscreen()
     if minimized then return end
     local vp2 = workspace.CurrentCamera.ViewportSize
-    -- Short duration + Cubic Out feels snappy and smooth. Longer tweens
-    -- (0.5s+) feel slow and magnify tiny per-frame jitter that reads as jerky.
     local fsDur  = 0.35
     local fsEase = Enum.EasingStyle.Cubic
     local fsDir  = Enum.EasingDirection.Out
@@ -559,18 +396,6 @@ end
 
 local function doClose()
     applyBlur(false)
-    if acrylicPart then
-        acrylicPart:Destroy()
-        acrylicPart = nil
-    end
-    if acrylicFolder then
-        acrylicFolder:Destroy()
-        acrylicFolder = nil
-    end
-    if acrylicDOF then
-        acrylicDOF:Destroy()
-        acrylicDOF = nil
-    end
     local vp2 = workspace.CurrentCamera.ViewportSize
     local tw2, th2 = w*0.85, h*0.85
     tween(win, {
@@ -579,6 +404,7 @@ local function doClose()
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.In, 0.35):Play()
     tw(fadeOverlay, {BackgroundTransparency=0}, Enum.EasingStyle.Quint, 0.3)
     task.delay(0.38, function()
+        if hittaDOF then hittaDOF:Destroy(); hittaDOF = nil end
         if gui and gui.Parent then gui:Destroy() end
         if miniGui and miniGui.Parent then miniGui:Destroy() end
     end)
@@ -605,10 +431,6 @@ for _, b in next, {
 end
 drag(topbar, win)
 
--- sidebar is a transparent clip container. Its inner background (sidebarBG)
--- is extended by rad pixels up and right, so that when the container clips
--- rectangularly only the bottom-left rounded corner stays visible (matching
--- bg's bottom-left corner). Clean single-transparency rendering.
 sidebar = make("Frame", {
     Parent=bg, Position=UDim2.new(0,0,0,topH+1),
     Size=UDim2.new(0,sideW,1,-(topH+1)),
