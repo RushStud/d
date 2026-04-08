@@ -375,7 +375,7 @@ local function acrylicRender()
     local tr = pos + Vector2.new(size.X, 0)
     local br = pos + size
 
-    local radius = 0.001
+    local radius = 1.0
     local tlW = acrylicViewportToWorld(tl, radius)
     local trW = acrylicViewportToWorld(tr, radius)
     local brW = acrylicViewportToWorld(br, radius)
@@ -406,8 +406,12 @@ local function acrylicInit()
 
     acrylicDOF = Instance.new("DepthOfFieldEffect")
     acrylicDOF.Name          = "HittaDOF"
-    acrylicDOF.FarIntensity  = 0
+    -- Force a sharp zone far away so anything near the camera (our Part at ~1 stud)
+    -- falls into the NEAR blur zone with full intensity. Without this, the default
+    -- FocusDistance keeps the Part "in focus" and no blur is applied.
+    acrylicDOF.FocusDistance = 500
     acrylicDOF.InFocusRadius = 0.1
+    acrylicDOF.FarIntensity  = 0
     acrylicDOF.NearIntensity = 1
     acrylicDOF.Enabled       = false
 end
