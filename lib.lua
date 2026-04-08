@@ -366,16 +366,17 @@ local function acrylicRender()
     local absSize = win.AbsoluteSize
     if absSize.X < 10 or absSize.Y < 10 then return end
 
-    -- Slight inset so the glass stays inside the rounded corners
-    local inset = 4
-    local pos   = absPos  + Vector2.new(inset, inset)
-    local size  = absSize - Vector2.new(inset * 2, inset * 2)
+    -- WindUI inset: scale by viewport height
+    local function map(x, a, b, c, d) return (x - a) * (d - c) / (b - a) + c end
+    local offset = map(cam.ViewportSize.Y, 0, 2560, 8, 56)
+    local pos    = absPos  + Vector2.new(offset / 2, offset / 2)
+    local size   = absSize - Vector2.new(offset, offset)
 
     local tl = pos
     local tr = pos + Vector2.new(size.X, 0)
     local br = pos + size
 
-    local radius = 1.0
+    local radius = 0.001
     local tlW = acrylicViewportToWorld(tl, radius)
     local trW = acrylicViewportToWorld(tr, radius)
     local brW = acrylicViewportToWorld(br, radius)
@@ -406,12 +407,8 @@ local function acrylicInit()
 
     acrylicDOF = Instance.new("DepthOfFieldEffect")
     acrylicDOF.Name          = "HittaDOF"
-    -- Force a sharp zone far away so anything near the camera (our Part at ~1 stud)
-    -- falls into the NEAR blur zone with full intensity. Without this, the default
-    -- FocusDistance keeps the Part "in focus" and no blur is applied.
-    acrylicDOF.FocusDistance = 500
-    acrylicDOF.InFocusRadius = 0.1
     acrylicDOF.FarIntensity  = 0
+    acrylicDOF.InFocusRadius = 0.1
     acrylicDOF.NearIntensity = 1
     acrylicDOF.Enabled       = false
 end
