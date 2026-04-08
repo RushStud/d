@@ -4,7 +4,16 @@ do
         local old = cg:FindFirstChild(n) if old then old:Destroy() end
     end
     for _, e in next, game:GetService("Lighting"):GetChildren() do
-        if e:IsA("BlurEffect") and e.Name == "HittaBlur" then e:Destroy() end
+        if (e:IsA("BlurEffect") and e.Name == "HittaBlur")
+        or (e:IsA("DepthOfFieldEffect") and e.Name == "HittaDOF") then
+            e:Destroy()
+        end
+    end
+    -- Remove stale Glass acrylic parts from previous sessions
+    local cam = workspace.CurrentCamera
+    if cam then
+        local folder = cam:FindFirstChild("HittaAcrylic")
+        if folder then folder:Destroy() end
     end
 end
 
@@ -47,7 +56,11 @@ do
 end
 
 local acrylicOn     = false
-local blurEffect    = nil
+local acrylicPart    = nil
+local acrylicFolder  = nil
+local acrylicDOF     = nil
+local acrylicConns   = {}
+local disabledDOFs   = {}
 local accent        = rgb(235,235,235)
 local accentTrackers = {}
 local toggleKey     = Enum.KeyCode.RightShift
@@ -307,26 +320,159 @@ openIcon.InputEnded:Connect(function(i)
 end)
 drag(openIcon, openIcon)
 
-local blurToken = 0
+-- Localized acrylic blur using a 3D Glass Part positioned to cover the UI rect.
+-- Technique (from WindUI): place an Anchored Part with Material=Glass very close
+-- to the camera, sized to exactly match the `bg` frame's screen rectangle in world
+-- space (via Camera:ScreenPointToRay). Glass material naturally refracts what's
+-- behind it, and a DepthOfFieldEffect with NearIntensity=1 amplifies that into
+-- a proper blur. Since the Part is 3D and limited to the UI rect, ONLY the area
+-- behind the hub is blurred — everything outside stays sharp. No global blur.
+
+local function acrylicViewportToWorld(pt, dist)
+    local cam = workspace.CurrentCamera
+    if not cam then return Vector3.new() end
+    local ray = cam:ScreenPointToRay(pt.X, pt.Y)
+    return ray.Origin + ray.Direction * dist
+end
+
+local function acrylicCreatePart()
+    local p = Instance.new("Part")
+    p.Name      = "HittaAcrylicGlass"
+    p.Color     = rgb(0, 0, 0)
+    p.Material  = Enum.Material.Glass
+    p.Size      = Vector3.new(1, 1, 0)
+    p.Anchored  = true
+    p.CanCollide= false
+    p.CanQuery  = false
+    p.CanTouch  = false
+    p.Locked    = true
+    p.CastShadow= false
+    p.Transparency = 0.98
+
+    local mesh = Instance.new("SpecialMesh")
+    mesh.MeshType = Enum.MeshType.Brick
+    mesh.Offset   = Vector3.new(0, 0, -1e-6)
+    mesh.Parent   = p
+    return p
+end
+
+local function acrylicRender()
+    if not acrylicPart or not acrylicPart.Parent then return end
+    local cam = workspace.CurrentCamera
+    if not cam then return end
+    if not win or not win:IsDescendantOf(game) then return end
+
+    local absPos  = win.AbsolutePosition
+    local absSize = win.AbsoluteSize
+    if absSize.X < 10 or absSize.Y < 10 then return end
+
+    -- Slight inset so the glass stays inside the rounded corners
+    local inset = 4
+    local pos   = absPos  + Vector2.new(inset, inset)
+    local size  = absSize - Vector2.new(inset * 2, inset * 2)
+
+    local tl = pos
+    local tr = pos + Vector2.new(size.X, 0)
+    local br = pos + size
+
+    local radius = 0.001
+    local tlW = acrylicViewportToWorld(tl, radius)
+    local trW = acrylicViewportToWorld(tr, radius)
+    local brW = acrylicViewportToWorld(br, radius)
+
+    local width  = (trW - tlW).Magnitude
+    local height = (trW - brW).Magnitude
+    local camCF  = cam.CFrame
+
+    acrylicPart.CFrame = CFrame.fromMatrix(
+        (tlW + brW) / 2,
+        camCF.XVector, camCF.YVector, camCF.ZVector
+    )
+    acrylicPart.Mesh.Scale = Vector3.new(width, height, 0)
+end
+
+local function acrylicInit()
+    if acrylicPart then return end
+
+    local cam = workspace.CurrentCamera
+    if not cam then return end
+
+    acrylicFolder = Instance.new("Folder")
+    acrylicFolder.Name = "HittaAcrylic"
+    acrylicFolder.Parent = cam
+
+    acrylicPart = acrylicCreatePart()
+    acrylicPart.Parent = acrylicFolder
+
+    acrylicDOF = Instance.new("DepthOfFieldEffect")
+    acrylicDOF.Name          = "HittaDOF"
+    acrylicDOF.FarIntensity  = 0
+    acrylicDOF.InFocusRadius = 0.1
+    acrylicDOF.NearIntensity = 1
+    acrylicDOF.Enabled       = false
+end
+
+local function acrylicDisconnect()
+    for _, c in ipairs(acrylicConns) do
+        pcall(function() c:Disconnect() end)
+    end
+    acrylicConns = {}
+end
+
 local function applyBlur(on)
-    blurToken = blurToken + 1
-    local token = blurToken
     if on then
-        if not blurEffect then
-            blurEffect = Instance.new("BlurEffect")
-            blurEffect.Name = "HittaBlur"
-            blurEffect.Size = 0
+        acrylicInit()
+        if not acrylicPart then return end
+
+        acrylicDisconnect()
+
+        -- Disable any other DepthOfFieldEffects so ours is the only active one
+        disabledDOFs = {}
+        for _, e in ipairs(lighting:GetChildren()) do
+            if e:IsA("DepthOfFieldEffect") and e ~= acrylicDOF and e.Enabled then
+                table.insert(disabledDOFs, e)
+                e.Enabled = false
+            end
         end
-        blurEffect.Parent = lighting
-        ts:Create(blurEffect, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {Size=22}):Play()
+        local cam = workspace.CurrentCamera
+        if cam then
+            for _, e in ipairs(cam:GetChildren()) do
+                if e:IsA("DepthOfFieldEffect") and e ~= acrylicDOF and e.Enabled then
+                    table.insert(disabledDOFs, e)
+                    e.Enabled = false
+                end
+            end
+        end
+
+        acrylicDOF.Parent  = lighting
+        acrylicDOF.Enabled = true
+        acrylicPart.Transparency = 0.98
+        acrylicPart.Parent = acrylicFolder
+
+        -- Re-render when camera or window frame moves
+        if cam then
+            table.insert(acrylicConns, cam:GetPropertyChangedSignal("CFrame"):Connect(acrylicRender))
+            table.insert(acrylicConns, cam:GetPropertyChangedSignal("ViewportSize"):Connect(acrylicRender))
+            table.insert(acrylicConns, cam:GetPropertyChangedSignal("FieldOfView"):Connect(acrylicRender))
+        end
+        table.insert(acrylicConns, win:GetPropertyChangedSignal("AbsolutePosition"):Connect(acrylicRender))
+        table.insert(acrylicConns, win:GetPropertyChangedSignal("AbsoluteSize"):Connect(acrylicRender))
+
+        task.spawn(acrylicRender)
     else
-        if blurEffect and blurEffect.Parent then
-            local b = blurEffect
-            ts:Create(b, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size=0}):Play()
-            task.delay(0.38, function()
-                if token == blurToken and b and b.Parent then b.Parent = nil end
-            end)
+        acrylicDisconnect()
+        if acrylicDOF then
+            acrylicDOF.Enabled = false
+            acrylicDOF.Parent = nil
         end
+        if acrylicPart then
+            acrylicPart.Transparency = 1
+        end
+        -- Restore other DOFs we disabled
+        for _, e in ipairs(disabledDOFs) do
+            pcall(function() e.Enabled = true end)
+        end
+        disabledDOFs = {}
     end
 end
 
@@ -411,9 +557,18 @@ local function setFullscreen()
 end
 
 local function doClose()
-    if blurEffect then
-        if blurEffect.Parent then blurEffect:Destroy() end
-        blurEffect = nil
+    applyBlur(false)
+    if acrylicPart then
+        acrylicPart:Destroy()
+        acrylicPart = nil
+    end
+    if acrylicFolder then
+        acrylicFolder:Destroy()
+        acrylicFolder = nil
+    end
+    if acrylicDOF then
+        acrylicDOF:Destroy()
+        acrylicDOF = nil
     end
     local vp2 = workspace.CurrentCamera.ViewportSize
     local tw2, th2 = w*0.85, h*0.85
