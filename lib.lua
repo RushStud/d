@@ -304,15 +304,14 @@ local function applyBlur(on)
         if not hittaDOF or not hittaDOF.Parent then
             hittaDOF = Instance.new("DepthOfFieldEffect")
             hittaDOF.Name          = "HittaDOF"
-            hittaDOF.FocusDistance = 0.01
-            hittaDOF.InFocusRadius = 0.01
-            hittaDOF.NearIntensity = 0
-            hittaDOF.FarIntensity  = 0
+            hittaDOF.FocusDistance = 5
+            hittaDOF.InFocusRadius = 1
+            hittaDOF.NearIntensity = 1
+            hittaDOF.FarIntensity  = 1
+            hittaDOF.Enabled       = false
             hittaDOF.Parent        = lighting
         end
         hittaDOF.Enabled = true
-        dofTween = ts:Create(hittaDOF, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FarIntensity=1})
-        dofTween:Play()
     else
         if hittaDOF and hittaDOF.Parent then
             dofTween = ts:Create(hittaDOF, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FarIntensity=0})
