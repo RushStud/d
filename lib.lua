@@ -50,6 +50,7 @@ end
 
 local acrylicOn      = false
 local hittaDOF       = nil
+local dofTween       = nil
 local accent         = rgb(235,235,235)
 local accentTrackers = {}
 local toggleKey      = Enum.KeyCode.RightShift
@@ -294,24 +295,30 @@ drag(openIcon, openIcon)
 
 -- Acrylic via DepthOfFieldEffect uniquement (pas de Glass Part)
 local function applyBlur(on)
+    -- annuler le tween en cours pour eviter les conflits de toggle rapide
+    if dofTween then
+        pcall(function() dofTween:Cancel() end)
+        dofTween = nil
+    end
     if on then
-        if not hittaDOF then
+        if not hittaDOF or not hittaDOF.Parent then
             hittaDOF = Instance.new("DepthOfFieldEffect")
             hittaDOF.Name          = "HittaDOF"
             hittaDOF.FocusDistance = 0.01
             hittaDOF.InFocusRadius = 0.01
             hittaDOF.NearIntensity = 0
-            hittaDOF.FarIntensity  = 1
+            hittaDOF.FarIntensity  = 0
+            hittaDOF.Parent        = lighting
         end
-        hittaDOF.Parent  = lighting
         hittaDOF.Enabled = true
-        ts:Create(hittaDOF, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FarIntensity=1}):Play()
+        dofTween = ts:Create(hittaDOF, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FarIntensity=1})
+        dofTween:Play()
     else
-        if hittaDOF then
-            local d = ts:Create(hittaDOF, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FarIntensity=0})
-            d:Play()
-            d.Completed:Connect(function()
-                if hittaDOF then
+        if hittaDOF and hittaDOF.Parent then
+            dofTween = ts:Create(hittaDOF, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FarIntensity=0})
+            dofTween:Play()
+            dofTween.Completed:Connect(function()
+                if not acrylicOn and hittaDOF then
                     hittaDOF.Enabled = false
                     hittaDOF.Parent  = nil
                 end
@@ -558,7 +565,9 @@ local function Notify(title, body, duration, side)
 
     task.spawn(function()
         task.wait()
+        task.wait()  -- attendre 2 frames pour que AutomaticSize calcule correctement
         local nh = card.AbsoluteSize.Y
+        if nh < 10 then task.wait(0.05); nh = card.AbsoluteSize.Y end
         tween(container,{Size=UDim2.new(1,0,0,nh)},Enum.EasingStyle.Quint,Enum.EasingDirection.Out,0.38):Play()
         tween(card,{Position=UDim2.new(0,0,1,0)},Enum.EasingStyle.Quint,Enum.EasingDirection.Out,0.38):Play()
         task.wait(0.4)
