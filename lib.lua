@@ -150,54 +150,6 @@ local bg = make("Frame", {
 })
 make("UICorner", {Parent=bg, CornerRadius=UDim.new(0,rad)})
 
--- Abstract animated lines (Wallpaper Engine style)
-local abstractCanvas = make("Frame", {
-    Parent=bg, Size=UDim2.new(1,0,1,0),
-    BackgroundTransparency=1, BorderSizePixel=0,
-    ZIndex=1, ClipsDescendants=true,
-})
-
-local LINE_COUNT = 30
-local lines = {}
-
-for i = 1, LINE_COUNT do
-    local line = make("Frame", {
-        Parent=abstractCanvas,
-        Size=UDim2.new(1.8, 0, 0, 1),
-        AnchorPoint=Vector2.new(0.5, 0.5),
-        Position=UDim2.new(0.5, 0, i / LINE_COUNT, 0),
-        BackgroundColor3=rgb(255,255,255),
-        BackgroundTransparency=0.72,
-        BorderSizePixel=0,
-        ZIndex=2,
-    })
-    local g = Instance.new("UIGradient")
-    g.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0,    1),
-        NumberSequenceKeypoint.new(0.2,  0.55),
-        NumberSequenceKeypoint.new(0.5,  0.6),
-        NumberSequenceKeypoint.new(0.8,  0.55),
-        NumberSequenceKeypoint.new(1,    1),
-    })
-    g.Parent = line
-    lines[i] = {frame=line, base=i/LINE_COUNT, offset=i*0.41, speed=0.3+i*0.015}
-end
-
-local abstractT = 0
-rs.RenderStepped:Connect(function(dt)
-    if not abstractCanvas or not abstractCanvas:IsDescendantOf(game) then return end
-    abstractT = abstractT + dt
-    local sin, cos = math.sin, math.cos
-    for _, l in ipairs(lines) do
-        local wave = sin(abstractT * l.speed + l.offset) * 0.06
-                   + sin(abstractT * l.speed * 0.45 + l.offset * 1.6) * 0.03
-                   + cos(abstractT * l.speed * 0.28 + l.offset * 0.8) * 0.02
-        local rot  = sin(abstractT * l.speed * 0.35 + l.offset) * 7
-        l.frame.Position = UDim2.new(0.5, 0, l.base + wave, 0)
-        l.frame.Rotation = rot
-    end
-end)
-
 local fadeOverlay = make("Frame", {
     Parent=win, Size=UDim2.new(1,0,1,0),
     BackgroundColor3=rgb(0,0,0), BackgroundTransparency=1,
@@ -341,9 +293,7 @@ openIcon.InputEnded:Connect(function(i)
 end)
 drag(openIcon, openIcon)
 
--- Acrylic via DepthOfFieldEffect uniquement (pas de Glass Part)
 local function applyBlur(on)
-    -- annuler le tween en cours pour eviter les conflits de toggle rapide
     if dofTween then
         pcall(function() dofTween:Cancel() end)
         dofTween = nil
@@ -612,7 +562,7 @@ local function Notify(title, body, duration, side)
 
     task.spawn(function()
         task.wait()
-        task.wait()  -- attendre 2 frames pour que AutomaticSize calcule correctement
+        task.wait()
         local nh = card.AbsoluteSize.Y
         if nh < 10 then task.wait(0.05); nh = card.AbsoluteSize.Y end
         tween(container,{Size=UDim2.new(1,0,0,nh)},Enum.EasingStyle.Quint,Enum.EasingDirection.Out,0.38):Play()
