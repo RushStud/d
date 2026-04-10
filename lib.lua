@@ -150,45 +150,54 @@ local bg = make("Frame", {
 })
 make("UICorner", {Parent=bg, CornerRadius=UDim.new(0,rad)})
 
--- Shimmer effect
-local shimmer = make("Frame", {
-    Parent=bg, Size=UDim2.new(0.18, 0, 1.4, 0),
-    AnchorPoint=Vector2.new(0.5, 0.5),
-    Position=UDim2.new(-0.1, 0, 0.5, 0),
-    BackgroundColor3=rgb(255,255,255),
-    BackgroundTransparency=1,
-    BorderSizePixel=0, ZIndex=50,
-    Rotation=15,
+-- Abstract animated lines (Wallpaper Engine style)
+local abstractCanvas = make("Frame", {
+    Parent=bg, Size=UDim2.new(1,0,1,0),
+    BackgroundTransparency=1, BorderSizePixel=0,
+    ZIndex=1, ClipsDescendants=true,
 })
-local shimGrad = Instance.new("UIGradient")
-shimGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,   rgb(255,255,255)),
-    ColorSequenceKeypoint.new(0.5, rgb(255,255,255)),
-    ColorSequenceKeypoint.new(1,   rgb(255,255,255)),
-})
-shimGrad.Transparency = NumberSequence.new({
-    NumberSequenceKeypoint.new(0,   1),
-    NumberSequenceKeypoint.new(0.4, 0.82),
-    NumberSequenceKeypoint.new(0.5, 0.78),
-    NumberSequenceKeypoint.new(0.6, 0.82),
-    NumberSequenceKeypoint.new(1,   1),
-})
-shimGrad.Rotation = 0
-shimGrad.Parent = shimmer
+
+local LINE_COUNT = 28
+local lines = {}
+
+for i = 1, LINE_COUNT do
+    local line = make("Frame", {
+        Parent=abstractCanvas,
+        Size=UDim2.new(1.6, 0, 0, 1),
+        AnchorPoint=Vector2.new(0.5, 0.5),
+        Position=UDim2.new(0.5, 0, i / LINE_COUNT, 0),
+        BackgroundColor3=rgb(255,255,255),
+        BackgroundTransparency=0.82,
+        BorderSizePixel=0,
+        ZIndex=1,
+        Rotation=0,
+    })
+    local g = Instance.new("UIGradient")
+    g.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0,   1),
+        NumberSequenceKeypoint.new(0.15, 0.7),
+        NumberSequenceKeypoint.new(0.5, 0.75),
+        NumberSequenceKeypoint.new(0.85, 0.7),
+        NumberSequenceKeypoint.new(1,   1),
+    })
+    g.Parent = line
+    lines[i] = {frame=line, base=i/LINE_COUNT, offset=i*0.37, speed=0.28+i*0.012}
+end
 
 task.spawn(function()
-    task.wait(1.5)
-    while shimmer and shimmer:IsDescendantOf(game) do
-        ts:Create(shimmer, TweenInfo.new(0, Enum.EasingStyle.Linear), {
-            Position = UDim2.new(-0.12, 0, 0.5, 0)
-        }):Play()
-        task.wait(0.05)
-        local t = ts:Create(shimmer, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Position = UDim2.new(1.12, 0, 0.5, 0)
-        })
-        t:Play()
-        t.Completed:Wait()
-        task.wait(math.random(4, 8))
+    local t = 0
+    local sin, cos = math.sin, math.cos
+    while abstractCanvas and abstractCanvas:IsDescendantOf(game) do
+        t = t + 0.016
+        for _, l in ipairs(lines) do
+            local wave = sin(t * l.speed + l.offset) * 0.055
+                       + sin(t * l.speed * 0.5 + l.offset * 1.7) * 0.028
+                       + cos(t * l.speed * 0.3 + l.offset * 0.9) * 0.018
+            local rot  = sin(t * l.speed * 0.4 + l.offset) * 6
+            l.frame.Position = UDim2.new(0.5, 0, l.base + wave, 0)
+            l.frame.Rotation = rot
+        end
+        task.wait(0.016)
     end
 end)
 
