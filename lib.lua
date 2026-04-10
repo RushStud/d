@@ -157,47 +157,44 @@ local abstractCanvas = make("Frame", {
     ZIndex=1, ClipsDescendants=true,
 })
 
-local LINE_COUNT = 28
+local LINE_COUNT = 30
 local lines = {}
 
 for i = 1, LINE_COUNT do
     local line = make("Frame", {
         Parent=abstractCanvas,
-        Size=UDim2.new(1.6, 0, 0, 1),
+        Size=UDim2.new(1.8, 0, 0, 1),
         AnchorPoint=Vector2.new(0.5, 0.5),
         Position=UDim2.new(0.5, 0, i / LINE_COUNT, 0),
         BackgroundColor3=rgb(255,255,255),
-        BackgroundTransparency=0.82,
+        BackgroundTransparency=0.72,
         BorderSizePixel=0,
-        ZIndex=1,
-        Rotation=0,
+        ZIndex=2,
     })
     local g = Instance.new("UIGradient")
     g.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0,   1),
-        NumberSequenceKeypoint.new(0.15, 0.7),
-        NumberSequenceKeypoint.new(0.5, 0.75),
-        NumberSequenceKeypoint.new(0.85, 0.7),
-        NumberSequenceKeypoint.new(1,   1),
+        NumberSequenceKeypoint.new(0,    1),
+        NumberSequenceKeypoint.new(0.2,  0.55),
+        NumberSequenceKeypoint.new(0.5,  0.6),
+        NumberSequenceKeypoint.new(0.8,  0.55),
+        NumberSequenceKeypoint.new(1,    1),
     })
     g.Parent = line
-    lines[i] = {frame=line, base=i/LINE_COUNT, offset=i*0.37, speed=0.28+i*0.012}
+    lines[i] = {frame=line, base=i/LINE_COUNT, offset=i*0.41, speed=0.3+i*0.015}
 end
 
-task.spawn(function()
-    local t = 0
+local abstractT = 0
+rs.RenderStepped:Connect(function(dt)
+    if not abstractCanvas or not abstractCanvas:IsDescendantOf(game) then return end
+    abstractT = abstractT + dt
     local sin, cos = math.sin, math.cos
-    while abstractCanvas and abstractCanvas:IsDescendantOf(game) do
-        t = t + 0.016
-        for _, l in ipairs(lines) do
-            local wave = sin(t * l.speed + l.offset) * 0.055
-                       + sin(t * l.speed * 0.5 + l.offset * 1.7) * 0.028
-                       + cos(t * l.speed * 0.3 + l.offset * 0.9) * 0.018
-            local rot  = sin(t * l.speed * 0.4 + l.offset) * 6
-            l.frame.Position = UDim2.new(0.5, 0, l.base + wave, 0)
-            l.frame.Rotation = rot
-        end
-        task.wait(0.016)
+    for _, l in ipairs(lines) do
+        local wave = sin(abstractT * l.speed + l.offset) * 0.06
+                   + sin(abstractT * l.speed * 0.45 + l.offset * 1.6) * 0.03
+                   + cos(abstractT * l.speed * 0.28 + l.offset * 0.8) * 0.02
+        local rot  = sin(abstractT * l.speed * 0.35 + l.offset) * 7
+        l.frame.Position = UDim2.new(0.5, 0, l.base + wave, 0)
+        l.frame.Rotation = rot
     end
 end)
 
