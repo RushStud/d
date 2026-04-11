@@ -147,17 +147,18 @@ local shadow = make("ImageLabel", {
     Parent=win,
     AnchorPoint=Vector2.new(0.5, 0.5),
     Position=UDim2.new(0.5, 0, 0.5, 0),
-    Size=UDim2.new(1, 120, 1, 120),
+    Size=UDim2.new(1, 75, 1, 75),
     BackgroundTransparency=1,
     BorderSizePixel=0,
+    BackgroundColor3=rgb(255,255,255),
     Image="rbxassetid://112971167999062",
-    ImageColor3=Color3.fromRGB(0, 0, 0),
-    ImageTransparency=0.35,
+    ImageColor3=rgb(0, 0, 0),
     ScaleType=Enum.ScaleType.Slice,
     SliceCenter=Rect.new(Vector2.new(112,112), Vector2.new(147,147)),
     SliceScale=0.75,
-    ZIndex=-1,
+    ZIndex=-100,
 })
+make("UICorner", {Parent=shadow, CornerRadius=UDim.new(0,5)})
 
 local bg = make("Frame", {
     Parent=win, Size=UDim2.new(1,0,1,0),
@@ -1373,6 +1374,18 @@ return {
     listConfigs     = listConfigs,
     getState        = getState,
     setState        = setState,
+    setShadow       = function(enabled)
+        if shadow and shadow:IsDescendantOf(game) then
+            ts:Create(shadow, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+                ImageTransparency = enabled and 0 or 1
+            }):Play()
+        end
+    end,
+    setShadowColor  = function(color)
+        if shadow and shadow:IsDescendantOf(game) then
+            shadow.ImageColor3 = color
+        end
+    end,
     setBlur         = function(enabled)
         if enabled then
             local blur = Instance.new("BlurEffect")
