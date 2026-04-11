@@ -1376,10 +1376,26 @@ return {
     listConfigs     = listConfigs,
     getState        = getState,
     setState        = setState,
+    setBlur         = function(enabled)
+        if enabled then
+            local blur = Instance.new("BlurEffect")
+            blur.Name = "HittaBlur"
+            blur.Size = 0
+            blur.Parent = lighting
+            ts:Create(blur, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {Size = 20}):Play()
+        else
+            local blur = lighting:FindFirstChild("HittaBlur")
+            if blur then
+                local t = ts:Create(blur, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {Size = 0})
+                t:Play()
+                t.Completed:Connect(function() blur:Destroy() end)
+            end
+        end
+    end,
     setToggleKey    = function(key) toggleKey = key end,
     setTier         = function(tier)
         if tierLbl and tierLbl:IsDescendantOf(game) then
-            tierLbl.Text = tier or "Free"
+            tierLbl.Text = tier or ""
         end
     end,
 }
