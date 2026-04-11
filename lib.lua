@@ -348,9 +348,9 @@ local function setMinimize()
         win.Position = savedPos  or UDim2.new(0,floor((vp.X-w)/2),0,floor((vp.Y-h)/2))
         fadeOverlay.BackgroundTransparency = 0
         win.Visible = true
+        bg.BackgroundTransparency = acrylicOn and 0.4 or 0
         tw(fadeOverlay, {BackgroundTransparency=1}, Enum.EasingStyle.Quint, 0.3)
         if acrylicOn then
-            bg.BackgroundTransparency = 0.4
             topbarBG.BackgroundTransparency = 1
             sidebarBG.BackgroundTransparency = 1
             applyBlur(true)
@@ -362,6 +362,7 @@ local function setMinimize()
         savedSize=win.Size; savedPos=win.Position; minimized=true
         sidebar.Visible=false; content.Visible=false
         applyBlur(false)
+        bg.BackgroundTransparency = 1
         tw(fadeOverlay, {BackgroundTransparency=0}, nil, 0.18)
         tween(win, {
             Size=UDim2.new(0,w,0,0),
@@ -502,7 +503,9 @@ local function Notify(title, body, duration, side)
     })
     local card = make("Frame", {
         Parent=container, AnchorPoint=Vector2.new(0,1), Position=UDim2.new(fromX,0,1,0),
-        Size=UDim2.new(1,0,0,0), BackgroundColor3=rgb(16,16,18), BorderSizePixel=0,
+        Size=UDim2.new(1,0,0,0), BackgroundColor3=rgb(16,16,18),
+        BackgroundTransparency=acrylicOn and 0.35 or 0,
+        BorderSizePixel=0,
         AutomaticSize=Enum.AutomaticSize.Y, ClipsDescendants=true, ZIndex=201,
     })
     make("UICorner", {Parent=card, CornerRadius=UDim.new(0,10)})
@@ -666,20 +669,29 @@ local tabFrames = {}
 local activeTab = nil
 local tabOrder  = 0
 
-local function animateIn()
-    overlay.BackgroundTransparency = 0
-    tw(overlay, {BackgroundTransparency=1}, Enum.EasingStyle.Quint, 0.35)
+local function animateIn(newFrame, oldFrame)
+    if oldFrame then
+        oldFrame.Visible = false
+    end
+    if newFrame then
+        newFrame.Position = UDim2.new(0.06, 0, 0, 0)
+        newFrame.BackgroundTransparency = 1
+        newFrame.Visible = true
+        tween(newFrame, {Position=UDim2.new(0,0,0,0)}, Enum.EasingStyle.Quint, Enum.EasingDirection.Out, 0.22):Play()
+    end
 end
 
 local function selectTab(name)
+    local oldFrame = activeTab and tabFrames[activeTab] or nil
     for n, t in next, tabs do
         local is = n == name
         tw(t.bg,  {BackgroundTransparency=is and 0.88 or 1}, nil, 0.12)
         tw(t.lbl, {TextTransparency=is and 0 or 0.45},       nil, 0.12)
         if t.icon then tw(t.icon, {ImageTransparency=is and 0 or 0.45}, nil, 0.12) end
-        if tabFrames[n] then tabFrames[n].Visible = is end
     end
-    if activeTab ~= name then animateIn() end
+    if activeTab ~= name then
+        animateIn(tabFrames[name], oldFrame)
+    end
     activeTab = name
 end
 
