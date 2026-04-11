@@ -1068,6 +1068,7 @@ local function addColorPicker(parent, label, default, callback)
         Parent=wrap, Position=UDim2.new(0,0,0,24),
         Size=UDim2.new(0.62,-6,0,canvasH),
         BackgroundColor3=Color3.fromHSV(ch,1,1), BorderSizePixel=0,
+        ClipsDescendants=true,
     })
     make("UICorner", {Parent=sv, CornerRadius=UDim.new(0,5)})
     local wf = make("Frame", {Parent=sv, Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.new(1,1,1), BorderSizePixel=0, ZIndex=2})
@@ -1090,9 +1091,10 @@ local function addColorPicker(parent, label, default, callback)
     make("UIStroke", {Parent=dot, Color=Color3.new(0,0,0), Thickness=1.5, ApplyStrokeMode=Enum.ApplyStrokeMode.Border})
 
     local preview = make("Frame", {
-        Parent=wrap, Position=UDim2.new(0.62,0,0,24),
-        Size=UDim2.new(0.38,0,0,canvasH),
+        Parent=wrap, Position=UDim2.new(0.62,4,0,24),
+        Size=UDim2.new(0.38,-4,0,canvasH),
         BackgroundColor3=Color3.fromHSV(ch,cs,cv), BorderSizePixel=0,
+        ClipsDescendants=true,
     })
     make("UICorner", {Parent=preview, CornerRadius=UDim.new(0,5)})
 
