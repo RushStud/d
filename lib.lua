@@ -143,6 +143,22 @@ local win = make("Frame", {
     BackgroundTransparency=1, BorderSizePixel=0,
 })
 
+local shadow = make("ImageLabel", {
+    Parent=win,
+    AnchorPoint=Vector2.new(0.5, 0.5),
+    Position=UDim2.new(0.5, 0, 0.5, 0),
+    Size=UDim2.new(1, 120, 1, 120),
+    BackgroundTransparency=1,
+    BorderSizePixel=0,
+    Image="rbxassetid://112971167999062",
+    ImageColor3=Color3.fromRGB(0, 0, 0),
+    ImageTransparency=0.35,
+    ScaleType=Enum.ScaleType.Slice,
+    SliceCenter=Rect.new(Vector2.new(112,112), Vector2.new(147,147)),
+    SliceScale=0.75,
+    ZIndex=-1,
+})
+
 local bg = make("Frame", {
     Parent=win, Size=UDim2.new(1,0,1,0),
     BackgroundColor3=rgb(10,10,10), BorderSizePixel=0,
