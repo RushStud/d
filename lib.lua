@@ -746,16 +746,16 @@ local function addTab(name, icon)
     })
 
     local cf = make("ScrollingFrame", {
-        Parent=content, Size=UDim2.new(1,0,1,0),
+        Parent=content, Size=UDim2.new(1,-6,1,0),
         BackgroundTransparency=1, BorderSizePixel=0,
-        ScrollBarThickness=2, ScrollBarImageColor3=rgb(32,32,32),
+        ScrollBarThickness=2, ScrollBarImageColor3=rgb(40,40,44),
         CanvasSize=UDim2.new(0,0,0,0), AutomaticCanvasSize=Enum.AutomaticSize.Y,
         Visible=false, ZIndex=2,
     })
     make("UIListLayout", {Parent=cf, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,6)})
     make("UIPadding", {
         Parent=cf, PaddingTop=UDim.new(0,14), PaddingBottom=UDim.new(0,14),
-        PaddingLeft=UDim.new(0,14), PaddingRight=UDim.new(0,18),
+        PaddingLeft=UDim.new(0,14), PaddingRight=UDim.new(0,14),
     })
 
     tabs[name]      = {bg=tround, lbl=tlbl, icon=ticon}
@@ -865,9 +865,9 @@ local function addMiniTabBar(parentScroll)
         })
 
         local scroll = make("ScrollingFrame", {
-            Parent=area, Size=UDim2.new(1,0,1,0),
+            Parent=area, Size=UDim2.new(1,-6,1,0),
             BackgroundTransparency=1, BorderSizePixel=0,
-            ScrollBarThickness=2, ScrollBarImageColor3=rgb(32,32,32),
+            ScrollBarThickness=2, ScrollBarImageColor3=rgb(40,40,44),
             CanvasSize=UDim2.new(0,0,0,0), AutomaticCanvasSize=Enum.AutomaticSize.Y,
             Visible=false, ZIndex=2,
         })
@@ -875,7 +875,7 @@ local function addMiniTabBar(parentScroll)
         make("UIPadding", {
             Parent=scroll,
             PaddingTop=UDim.new(0,14), PaddingBottom=UDim.new(0,14),
-            PaddingLeft=UDim.new(0,14), PaddingRight=UDim.new(0,18),
+            PaddingLeft=UDim.new(0,14), PaddingRight=UDim.new(0,14),
         })
 
         miniTabs[name]   = {btn=btn, lbl=lbl}
