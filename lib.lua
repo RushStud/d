@@ -371,7 +371,10 @@ local function setMinimize()
         savedSize=win.Size; savedPos=win.Position; minimized=true
         sidebar.Visible=false; content.Visible=false
         applyBlur(false, true)
-        tw(fadeOverlay, {BackgroundTransparency = acrylicOn and 0.55 or 0}, nil, 0.18)
+        if acrylicOn then
+            tw(bg, {BackgroundTransparency=1}, nil, 0.18)
+        end
+        tw(fadeOverlay, {BackgroundTransparency = acrylicOn and 0.75 or 0}, nil, 0.18)
         tween(win, {
             Size=UDim2.new(0,w,0,0),
             Position=UDim2.new(0,savedPos.X.Offset,0,savedPos.Y.Offset+savedSize.Y.Offset/2),
@@ -418,7 +421,10 @@ local function doClose()
         Size=UDim2.new(0,tw2,0,th2),
         Position=UDim2.new(0,floor((vp2.X-tw2)/2),0,floor((vp2.Y-th2)/2)),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.In, 0.35):Play()
-    tw(fadeOverlay, {BackgroundTransparency = acrylicOn and 0.55 or 0}, Enum.EasingStyle.Quint, 0.3)
+    if acrylicOn then
+        tw(bg, {BackgroundTransparency=1}, Enum.EasingStyle.Quint, 0.3)
+    end
+    tw(fadeOverlay, {BackgroundTransparency = acrylicOn and 0.75 or 0}, Enum.EasingStyle.Quint, 0.3)
     task.delay(0.38, function()
         if hittaDOF then hittaDOF:Destroy(); hittaDOF = nil end
         if gui and gui.Parent then gui:Destroy() end
@@ -749,7 +755,7 @@ local function addTab(name, icon)
     make("UIListLayout", {Parent=cf, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,6)})
     make("UIPadding", {
         Parent=cf, PaddingTop=UDim.new(0,14), PaddingBottom=UDim.new(0,14),
-        PaddingLeft=UDim.new(0,14), PaddingRight=UDim.new(0,14),
+        PaddingLeft=UDim.new(0,14), PaddingRight=UDim.new(0,18),
     })
 
     tabs[name]      = {bg=tround, lbl=tlbl, icon=ticon}
@@ -869,7 +875,7 @@ local function addMiniTabBar(parentScroll)
         make("UIPadding", {
             Parent=scroll,
             PaddingTop=UDim.new(0,14), PaddingBottom=UDim.new(0,14),
-            PaddingLeft=UDim.new(0,14), PaddingRight=UDim.new(0,14),
+            PaddingLeft=UDim.new(0,14), PaddingRight=UDim.new(0,18),
         })
 
         miniTabs[name]   = {btn=btn, lbl=lbl}
