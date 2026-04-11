@@ -149,6 +149,15 @@ local bg = make("Frame", {
     ClipsDescendants=true,
 })
 make("UICorner", {Parent=bg, CornerRadius=UDim.new(0,rad)})
+local bgClipBottom = make("Frame", {
+    Parent=win, AnchorPoint=Vector2.new(0,1),
+    Position=UDim2.new(0,0,1,0),
+    Size=UDim2.new(1,0,0,rad),
+    BackgroundColor3=rgb(0,0,0),
+    BackgroundTransparency=1,
+    BorderSizePixel=0, ZIndex=600,
+    ClipsDescendants=true,
+})
 
 local fadeOverlay = make("Frame", {
     Parent=win, Size=UDim2.new(1,0,1,0),
@@ -362,7 +371,7 @@ local function setMinimize()
         savedSize=win.Size; savedPos=win.Position; minimized=true
         sidebar.Visible=false; content.Visible=false
         applyBlur(false, true)
-        tw(fadeOverlay, {BackgroundTransparency=0}, nil, 0.18)
+        tw(fadeOverlay, {BackgroundTransparency = acrylicOn and 0.55 or 0}, nil, 0.18)
         tween(win, {
             Size=UDim2.new(0,w,0,0),
             Position=UDim2.new(0,savedPos.X.Offset,0,savedPos.Y.Offset+savedSize.Y.Offset/2),
@@ -409,7 +418,7 @@ local function doClose()
         Size=UDim2.new(0,tw2,0,th2),
         Position=UDim2.new(0,floor((vp2.X-tw2)/2),0,floor((vp2.Y-th2)/2)),
     }, Enum.EasingStyle.Quint, Enum.EasingDirection.In, 0.35):Play()
-    tw(fadeOverlay, {BackgroundTransparency=0}, Enum.EasingStyle.Quint, 0.3)
+    tw(fadeOverlay, {BackgroundTransparency = acrylicOn and 0.55 or 0}, Enum.EasingStyle.Quint, 0.3)
     task.delay(0.38, function()
         if hittaDOF then hittaDOF:Destroy(); hittaDOF = nil end
         if gui and gui.Parent then gui:Destroy() end
