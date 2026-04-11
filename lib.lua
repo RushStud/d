@@ -316,7 +316,7 @@ local function applyBlur(on)
             dofTween = ts:Create(hittaDOF, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FarIntensity=0})
             dofTween:Play()
             dofTween.Completed:Connect(function()
-                if not acrylicOn and hittaDOF then
+                if (not acrylicOn or force) and hittaDOF then
                     hittaDOF.Enabled = false
                     hittaDOF.Parent  = nil
                 end
@@ -361,8 +361,7 @@ local function setMinimize()
     else
         savedSize=win.Size; savedPos=win.Position; minimized=true
         sidebar.Visible=false; content.Visible=false
-        applyBlur(false)
-        bg.BackgroundTransparency = 1
+        applyBlur(false, true)
         tw(fadeOverlay, {BackgroundTransparency=0}, nil, 0.18)
         tween(win, {
             Size=UDim2.new(0,w,0,0),
@@ -377,6 +376,7 @@ local function setMinimize()
     end
 end
 
+local fsNormalSize, fsNormalPos
 local function setFullscreen()
     if minimized then return end
     local vp2 = workspace.CurrentCamera.ViewportSize
@@ -385,12 +385,13 @@ local function setFullscreen()
     local fsDir  = Enum.EasingDirection.Out
     if fullscreen then
         fullscreen = false
-        tween(win, {
-            Size=savedSize or UDim2.new(0,w,0,h),
-            Position=savedPos or UDim2.new(0,floor((vp2.X-w)/2),0,floor((vp2.Y-h)/2)),
-        }, fsEase, fsDir, fsDur):Play()
+        local targetSize = fsNormalSize or UDim2.new(0,w,0,h)
+        local targetPos  = fsNormalPos  or UDim2.new(0,floor((vp2.X-w)/2),0,floor((vp2.Y-h)/2))
+        tween(win, {Size=targetSize, Position=targetPos}, fsEase, fsDir, fsDur):Play()
     else
-        savedSize=win.Size; savedPos=win.Position; fullscreen=true
+        fsNormalSize = win.Size
+        fsNormalPos  = win.Position
+        fullscreen = true
         local targetW = math.min(vp2.X - 40, FS_MAX_W)
         local targetH = math.min(vp2.Y - 40, FS_MAX_H)
         tween(win, {
@@ -465,7 +466,7 @@ make("UIListLayout", {Parent=sideScroll, SortOrder=Enum.SortOrder.LayoutOrder, P
 make("UIPadding", {
     Parent=sideScroll,
     PaddingTop=UDim.new(0,10), PaddingLeft=UDim.new(0,8),
-    PaddingRight=UDim.new(0,8), PaddingBottom=UDim.new(0,10),
+    PaddingRight=UDim.new(0,8), PaddingBottom=UDim.new(0,20),
 })
 
 content = make("Frame", {
