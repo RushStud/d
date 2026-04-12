@@ -362,7 +362,6 @@ local function setAcrylic(enabled)
     for _, bar in next, miniBars do
         tw(bar, {BackgroundTransparency=enabled and 1 or 0}, Enum.EasingStyle.Quint, d)
     end
-    applyBlur(enabled)
 end
 
 local function setMinimize()
